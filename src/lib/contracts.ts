@@ -1,5 +1,5 @@
-export const COMMIT_REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_COMMIT_REGISTRY as `0x${string}` | undefined;
-export const PROOF_NFT_ADDRESS = process.env.NEXT_PUBLIC_PROOF_NFT as `0x${string}` | undefined;
+export const COMMIT_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_COMMIT_REGISTRY || "0xCB6e2D5424e8242920f6dC6078BBfb4083c7C12E") as `0x${string}`;
+export const PROOF_NFT_ADDRESS = (process.env.NEXT_PUBLIC_PROOF_NFT || "0xAb312caeAbAA11Ff84b52f7374E97C1B0c574CB4") as `0x${string}`;
 
 // Legacy for compatibility if needed, but we should migrate
 export const STEALTH_POOL_ADDRESS = COMMIT_REGISTRY_ADDRESS;
