@@ -1,8 +1,30 @@
 export const COMMIT_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_COMMIT_REGISTRY || "0xCB6e2D5424e8242920f6dC6078BBfb4083c7C12E") as `0x${string}`;
 export const PROOF_NFT_ADDRESS = (process.env.NEXT_PUBLIC_PROOF_NFT || "0xAb312caeAbAA11Ff84b52f7374E97C1B0c574CB4") as `0x${string}`;
 
-// Legacy for compatibility if needed, but we should migrate
-export const STEALTH_POOL_ADDRESS = COMMIT_REGISTRY_ADDRESS;
+export const PROOF_OF_SUPPORT_NFT_ADDRESS = PROOF_NFT_ADDRESS;
+export const STEALTH_BURN_REGISTRY_ADDRESS = COMMIT_REGISTRY_ADDRESS;
+
+export const proofOfSupportNftAbi = [
+  {
+    type: "function",
+    name: "mint",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "commitment", type: "bytes32" },
+      { name: "tokenURI", type: "string" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "commitmentUsed",
+    stateMutability: "view",
+    inputs: [{ name: "commitment", type: "bytes32" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+];
+
 
 export const commitRegistryAbi = [
   {
@@ -99,6 +121,8 @@ export const commitRegistryAbi = [
     anonymous: false,
   },
 ] as const;
+
+export const stealthBurnRegistryAbi = commitRegistryAbi;
 
 export const proofNftAbi = [
   {
