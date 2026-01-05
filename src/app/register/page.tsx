@@ -32,6 +32,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [importKey, setImportKey] = useState('');
   const [hasLocalKey, setHasLocalKey] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   
   // Deletion Logic State
   const [deleting, setDeleting] = useState(false);
@@ -272,40 +273,56 @@ export default function Register() {
               </button>
             </div>
           ) : (
-            <div className="bg-black/30 border border-white/10 p-4 rounded-lg mb-8 text-sm text-text-primary text-left space-y-3">
-              <div className="flex items-center gap-3">
-                <KeyIcon className="w-5 h-5 text-worm-green flex-shrink-0" />
-                <div>
-                  <div className="font-bold">Import Scanning Key</div>
-                  <div className="text-text-muted">Paste the private key that was generated when you first registered.</div>
+            <div className="space-y-4">
+              {!showImport ? (
+                <button 
+                  onClick={() => setShowImport(true)}
+                  className="w-full py-3 px-6 bg-black/40 border border-white/10 text-text-muted hover:text-white hover:border-worm-green/50 rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <KeyIcon className="w-4 h-4" />
+                  Recover / Import Key
+                </button>
+              ) : (
+                <div className="bg-black/30 border border-white/10 p-4 rounded-lg animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <KeyIcon className="w-4 h-4 text-worm-green" />
+                      <span className="font-bold text-sm text-white">Import Scanning Key</span>
+                    </div>
+                    <button onClick={() => setShowImport(false)} className="text-xs text-text-muted hover:text-white">Cancel</button>
+                  </div>
+                  <p className="text-xs text-text-muted mb-3 text-left">
+                    Paste the private key generated during registration to restore access on this device.
+                  </p>
+                  <input
+                    value={importKey}
+                    onChange={(e) => setImportKey(e.target.value)}
+                    placeholder="0x..."
+                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-worm-green focus:outline-none mb-3 font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!account) return;
+                      const v = importKey.trim();
+                      if (!v.startsWith('0x') || v.length < 66) {
+                        alert('Invalid key format');
+                        return;
+                      }
+                      try {
+                        localStorage.setItem(`worm_sk_${account}`, v);
+                        setHasLocalKey(true);
+                        setImportKey('');
+                        setShowImport(false);
+                      } catch {
+                        alert('Failed to save key');
+                      }
+                    }}
+                    className="w-full py-2 bg-worm-green/20 text-worm-green border border-worm-green/20 rounded hover:bg-worm-green/30 transition-colors text-sm font-bold"
+                  >
+                    Save Key
+                  </button>
                 </div>
-              </div>
-              <input
-                value={importKey}
-                onChange={(e) => setImportKey(e.target.value)}
-                placeholder="0x..."
-                className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white focus:border-worm-green focus:outline-none"
-              />
-              <button
-                onClick={() => {
-                  if (!account) return;
-                  const v = importKey.trim();
-                  if (!v.startsWith('0x') || v.length < 66) {
-                    alert('Invalid key format');
-                    return;
-                  }
-                  try {
-                    localStorage.setItem(`worm_sk_${account}`, v);
-                    setHasLocalKey(true);
-                    setImportKey('');
-                    alert('Scanning key saved to this browser.');
-                  } catch {}
-                }}
-                disabled={!importKey}
-                className="w-full py-2 bg-worm-green text-black rounded-lg font-bold disabled:opacity-50"
-              >
-                Save Key
-              </button>
+              )}
             </div>
           )}
 
