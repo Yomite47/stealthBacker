@@ -6,7 +6,7 @@ import { getAccount, ensureCorrectNetwork } from "@/lib/viem";
 
 interface WalletContextType {
   account: Address | undefined;
-  connect: () => Promise<void>;
+  connect: (silent?: boolean) => Promise<void>;
   checkConnection: () => Promise<void>;
   disconnect: () => void;
 }
@@ -30,18 +30,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const connect = async () => {
+  const connect = async (silent: boolean = false) => {
     try {
-      const acc = await getAccount(true);
+      const acc = await getAccount(!silent);
       if (!acc) {
-        throw new Error("No account returned. Please unlock your wallet.");
+        if (!silent) throw new Error("No account returned. Please unlock your wallet.");
+        return;
       }
       await ensureCorrectNetwork();
       setAccount(acc);
       try { localStorage.removeItem("worm_soft_disconnect"); } catch {}
     } catch (e) {
-      console.error(e);
-      alert("Failed to connect wallet: " + (e as Error).message);
+      if (!silent) {
+        console.error(e);
+        alert("Failed to connect wallet: " + (e as Error).message);
+      }
     }
   };
 

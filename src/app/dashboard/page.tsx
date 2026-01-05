@@ -39,12 +39,7 @@ type DepositItem = {
 
 export default function Dashboard() {
   const { account } = useWallet();
-  const [activeTab, setActiveTab] = useState<'supporter' | 'creator'>('supporter');
   
-  // Supporter State
-  const [nfts, setNfts] = useState<NftItem[]>([]);
-  const [loadingNfts, setLoadingNfts] = useState(false);
-
   // Creator State
   const [scanning, setScanning] = useState(false);
   const [deposits, setDeposits] = useState<DepositItem[]>([]);
@@ -52,64 +47,8 @@ export default function Dashboard() {
   const [scanStatus, setScanStatus] = useState('');
 
   useEffect(() => {
-    if (account) {
-      if (activeTab === 'supporter') fetchNfts();
-      // Creator scan is manual
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account, activeTab]);
-
-  const fetchNfts = async () => {
-    if (!account || !PROOF_NFT_ADDRESS) return;
-    setLoadingNfts(true);
-    try {
-      const logs = await publicClient.getContractEvents({
-        address: PROOF_NFT_ADDRESS,
-        abi: proofNftAbi,
-        eventName: 'Transfer',
-        args: { to: account },
-        fromBlock: 7460000n, // Sepolia start block for this contract roughly
-      });
-
-      const items: NftItem[] = [];
-      const typedLogs = logs as Array<{ args: { tokenId?: bigint } }>;
-      const tokenIds = new Set(typedLogs.map(l => l.args.tokenId));
-
-      for (const tokenId of Array.from(tokenIds)) {
-        if (tokenId === undefined) continue;
-        
-        const uri = await publicClient.readContract({
-          address: PROOF_NFT_ADDRESS,
-          abi: proofNftAbi,
-          functionName: 'tokenURI',
-          args: [tokenId],
-        });
-
-        let metadata = {};
-        try {
-          if (uri.startsWith('data:application/json;base64,')) {
-            const json = atob(uri.split(',')[1]);
-            metadata = JSON.parse(json);
-          }
-        } catch (e) {
-          console.error("Failed to parse metadata", e);
-        }
-
-        items.push({
-          id: tokenId.toString(),
-          uri,
-          metadata
-        });
-      }
-
-      setNfts(items);
-    } catch (e) {
-      const dbg = process.env.NEXT_PUBLIC_DEBUG === '1';
-      if (dbg) console.error("Failed to fetch NFTs", e);
-    } finally {
-      setLoadingNfts(false);
-    }
-  };
+    // Creator scan is manual
+  }, [account]);
 
   const scanForDeposits = async () => {
     if (!account || !COMMIT_REGISTRY_ADDRESS) return;
@@ -270,105 +209,16 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-text-primary p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         
-        {/* Header & Tabs */}
+        {/* Header */}
         <header className="mb-12 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-worm-green/20 pb-6">
           <div>
-            <h1 className="text-4xl font-bold text-glow mb-2">Dashboard</h1>
-            <p className="text-text-muted">Manage your support history and received funds.</p>
-          </div>
-          
-          <div className="flex bg-panel border border-worm-green/20 rounded-lg p-1">
-            <button
-              onClick={() => setActiveTab('supporter')}
-              className={`px-6 py-2 rounded-md font-bold transition-all ${
-                activeTab === 'supporter' 
-                  ? 'bg-worm-green text-black shadow-[0_0_10px_rgba(58,242,107,0.4)]' 
-                  : 'text-text-muted hover:text-white'
-              }`}
-            >
-              My Support
-            </button>
-            <button
-              onClick={() => setActiveTab('creator')}
-              className={`px-6 py-2 rounded-md font-bold transition-all ${
-                activeTab === 'creator' 
-                  ? 'bg-worm-green text-black shadow-[0_0_10px_rgba(58,242,107,0.4)]' 
-                  : 'text-text-muted hover:text-white'
-              }`}
-            >
-              Creator View
-            </button>
+            <h1 className="text-4xl font-bold text-glow mb-2">Creator Dashboard</h1>
+            <p className="text-text-muted">Scan for and redeem your anonymous support.</p>
           </div>
         </header>
 
-        {/* Supporter View */}
-        {activeTab === 'supporter' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <ShieldIcon className="text-worm-green" /> Supported Creators
-              </h2>
-              <button onClick={fetchNfts} className="p-2 hover:bg-white/5 rounded-full text-worm-green transition-colors">
-                <RefreshIcon className={`w-5 h-5 ${loadingNfts ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-
-            {loadingNfts ? (
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {[1,2,3].map(i => (
-                   <div key={i} className="h-64 bg-panel rounded-xl animate-pulse border border-white/5"></div>
-                 ))}
-               </div>
-            ) : nfts.length === 0 ? (
-              <div className="bg-panel border border-dashed border-worm-green/20 rounded-xl p-12 text-center">
-                <p className="text-text-muted mb-4">You haven&apos;t supported any creators yet.</p>
-                <a href="/support" className="text-worm-green hover:underline font-bold">Browse Creators</a>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {nfts.map((nft) => (
-                  <div key={nft.id} className="group relative bg-panel rounded-xl overflow-hidden shadow-lg border border-worm-green/20 hover:border-worm-green transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="bg-worm-green text-black text-xs font-bold px-2 py-1 rounded">
-                        VERIFIED
-                      </div>
-                    </div>
-                    
-                    <div className="p-6">
-                      <div className="w-12 h-12 bg-worm-green/10 rounded-full flex items-center justify-center mb-4 text-worm-green">
-                        <ShieldIcon />
-                      </div>
-                      
-                      {/* @ts-expect-error nft metadata is unknown JSON */}
-                      <h3 className="text-lg font-bold text-white mb-2">{nft.metadata.description || 'Anonymous Support'}</h3>
-                      
-                      <div className="space-y-2 text-sm text-text-muted font-mono">
-                        <div className="flex justify-between">
-                          <span>Amount</span>
-                          {/* @ts-expect-error nft attributes optional shape */}
-                          <span className="text-worm-green">{nft.metadata.attributes?.find(a => a.trait_type === 'Amount')?.value || '??? ETH'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>ID</span>
-                          <span>#{nft.id}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-black/20 p-4 border-t border-white/5 flex justify-between items-center">
-                      <span className="text-xs text-text-muted">Proof of Support</span>
-                      <a href="#" className="text-xs text-worm-green hover:underline">View On-chain</a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Creator View */}
-        {activeTab === 'creator' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
             
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -457,7 +307,6 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-        )}
       </div>
     </div>
   );

@@ -55,7 +55,7 @@ export default function Navbar() {
       
       if (lastRdns === d.info.rdns && softDisconnect !== "true") {
         setWalletProvider(d.provider);
-        connect().catch(console.error);
+        connect(true).catch(console.error);
       }
     };
 
@@ -77,7 +77,7 @@ export default function Navbar() {
         const softDisconnect = localStorage.getItem("worm_soft_disconnect");
         if (lastRdns === "injected" && softDisconnect !== "true") {
            setWalletProvider(injected);
-           connect().catch(console.error);
+           connect(true).catch(console.error);
         }
       }
     }, 300);
