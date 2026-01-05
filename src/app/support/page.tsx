@@ -193,21 +193,7 @@ export default function Support() {
       setStatus('done');
       setTxHash(mintHash);
       setAmount('');
-      try {
-        const item = {
-          creatorWallet: selectedCreator.wallet,
-          creatorName: selectedCreator.name,
-          amount,
-          commitment,
-          txHash: mintHash,
-          timestamp: Date.now(),
-        };
-        const key = `worm_support_history_${account}`;
-        const prev = localStorage.getItem(key);
-        const list = prev ? JSON.parse(prev) : [];
-        list.unshift(item);
-        localStorage.setItem(key, JSON.stringify(list));
-      } catch {}
+      // History is no longer saved locally for privacy
     } catch (err) {
       console.error("Support failed", err);
       alert("Support failed: " + (err as Error).message);

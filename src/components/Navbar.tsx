@@ -38,6 +38,18 @@ export default function Navbar() {
     };
   }, []);
 
+  // Cleanup legacy history for privacy
+  useEffect(() => {
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith('worm_support_history_') || key.startsWith('worm_redeemed_history_')) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch {}
+  }, []);
+
   // EIP-6963 Discovery & Auto-Connect
   useEffect(() => {
     const announced = new Map<string, AnnouncedProvider>();
