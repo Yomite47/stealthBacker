@@ -47,7 +47,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const disconnect = () => {
     setAccount(undefined);
-    try { localStorage.setItem("worm_soft_disconnect", "true"); } catch {}
+    try { 
+      localStorage.setItem("worm_soft_disconnect", "true"); 
+      localStorage.removeItem("worm_last_wallet_rdns");
+    } catch {}
   };
 
   useEffect(() => {

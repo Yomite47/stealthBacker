@@ -50,8 +50,16 @@ export async function getAccount(request: boolean = false) {
   if (!client) return undefined;
   
   try {
-    const addrs = await client.requestAddresses();
-    return addrs[0];
+    // If requesting permissions, use requestAddresses (eth_requestAccounts)
+    if (request) {
+      const addrs = await client.requestAddresses();
+      return addrs[0];
+    } 
+    // Otherwise just check current status (eth_accounts)
+    else {
+      const addrs = await client.getAddresses();
+      return addrs[0];
+    }
   } catch {
     // Fallback to direct provider access if client fails (rare)
     const provider = _provider ?? (window as { ethereum?: EIP1193Provider }).ethereum;
