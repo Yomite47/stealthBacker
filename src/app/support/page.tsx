@@ -333,7 +333,7 @@ export default function Support() {
             {!account ? (
               <div className="text-center py-8">
                 <button 
-                  onClick={connect}
+                  onClick={() => connect()}
                   className="px-8 py-3 bg-transparent border border-worm-green text-worm-green rounded-lg font-bold hover:bg-worm-green hover:text-black transition-all shadow-[0_0_10px_rgba(58,242,107,0.2)]"
                 >
                   Connect Wallet to Support

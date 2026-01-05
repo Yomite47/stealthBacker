@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { publicClient, getWalletClient, ensureCorrectNetwork } from '@/lib/viem';
 import { useWallet } from '@/context/WalletContext';
 import { recoverStealthPrivateKey } from '@/lib/crypto';
-import { COMMIT_REGISTRY_ADDRESS, PROOF_NFT_ADDRESS, commitRegistryAbi, proofNftAbi } from '@/lib/contracts';
+import { COMMIT_REGISTRY_ADDRESS, commitRegistryAbi } from '@/lib/contracts';
 import { Address, formatEther, encodePacked, parseSignature, keccak256 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
@@ -24,12 +24,6 @@ const DownloadIcon = ({ className }: { className?: string }) => (
 const RefreshIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
 );
-
-type NftItem = {
-    id: string;
-    uri: string;
-    metadata: Record<string, unknown>;
-  };
 
 type DepositItem = {
   stealthAddress: Address;
@@ -53,9 +47,9 @@ export default function Dashboard() {
   const scanForDeposits = async () => {
     if (!account || !COMMIT_REGISTRY_ADDRESS) return;
     
-    const storedKey = localStorage.getItem(`worm_sk_${account}`);
+    const storedKey = sessionStorage.getItem(`worm_sk_${account}`);
     if (!storedKey) {
-      alert("No scanning key found for this account. Did you register on this device?");
+      alert("No scanning key found for this session. Please unlock your profile in the Register/Profile page.");
       return;
     }
 

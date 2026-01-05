@@ -59,7 +59,7 @@ export default function Register() {
         setRegistered(false);
       }
       try {
-        const existing = localStorage.getItem(`worm_sk_${account}`);
+        const existing = sessionStorage.getItem(`worm_sk_${account}`);
         setHasLocalKey(!!existing);
       } catch {
         setHasLocalKey(false);
@@ -91,8 +91,8 @@ export default function Register() {
       const keys = getKeysFromSignature(signature);
       if (dbg) console.log("Keys derived");
 
-      // 2. Save Private Key to Local Storage (Auto-login for next time)
-      localStorage.setItem(`worm_sk_${account}`, keys.privateKey);
+      // 2. Save Private Key to Session Storage (Temporary access for this session only)
+      sessionStorage.setItem(`worm_sk_${account}`, keys.privateKey);
 
       // 3. Register Public Key on Chain
       if (dbg) console.log("Simulating contract...");
@@ -133,7 +133,7 @@ export default function Register() {
         message: `Sign this message to access your StealthBacker profile.\n\nThis signature is used to securely generate your scanning keys on this device without you needing to manage them manually.\n\nAccount: ${account}`
       });
       const keys = getKeysFromSignature(signature);
-      localStorage.setItem(`worm_sk_${account}`, keys.privateKey);
+      sessionStorage.setItem(`worm_sk_${account}`, keys.privateKey);
       setHasLocalKey(true);
     } catch (e) {
       console.error(e);
@@ -145,7 +145,7 @@ export default function Register() {
     if (!account || !COMMIT_REGISTRY_ADDRESS) return;
     
     // Check for local key first
-    const sk = localStorage.getItem(`worm_sk_${account}`);
+    const sk = sessionStorage.getItem(`worm_sk_${account}`);
     if (!sk) {
       setUnclaimedCount(0);
       setUnclaimedAmount(0n);
@@ -220,7 +220,7 @@ export default function Register() {
 
   const performDelete = () => {
     if (!account) return;
-    localStorage.removeItem(`worm_sk_${account}`);
+    sessionStorage.removeItem(`worm_sk_${account}`);
     localStorage.removeItem(`worm_alias_${account}`);
     localStorage.removeItem(`worm_last_scan_block_${account}`);
     setHasLocalKey(false);
