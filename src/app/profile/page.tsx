@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useWallet } from '@/context/WalletContext';
-import { publicClient } from '@/lib/viem';
+import { publicClient, getWalletClient } from '@/lib/viem';
 import { COMMIT_REGISTRY_ADDRESS, commitRegistryAbi } from '@/lib/contracts';
 import { Address, formatEther } from 'viem';
-import { recoverStealthPrivateKey } from '@/lib/crypto';
+import { recoverStealthPrivateKey, getKeysFromSignature } from '@/lib/crypto';
 
 const ShieldIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -55,6 +55,7 @@ export default function Profile() {
   const [unredeemed, setUnredeemed] = useState<Array<{ stealthAddress: Address; amount: bigint }>>([]);
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState('');
+  const [hasLocalKey, setHasLocalKey] = useState(false);
 
   const aliasKey = useMemo(() => account ? `worm_alias_${account}` : '', [account]);
 
@@ -64,9 +65,17 @@ export default function Profile() {
       const a = localStorage.getItem(aliasKey);
       if (a) setAlias(a);
     } catch {}
+    
+    try {
+      const existing = sessionStorage.getItem(`worm_sk_${account}`);
+      setHasLocalKey(!!existing);
+    } catch { setHasLocalKey(false); }
+
     loadCreatorInfo();
     loadHistories();
-    scanUnredeemed();
+    if (sessionStorage.getItem(`worm_sk_${account}`)) {
+      scanUnredeemed();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account]);
 
@@ -78,6 +87,24 @@ export default function Profile() {
       setTimeout(() => setAliasSavedMsg(''), 1500);
       setAliasEditing(false);
     } catch {}
+  };
+
+  const handleUnlock = async () => {
+    const walletClient = getWalletClient();
+    if (!account || !walletClient) return;
+    try {
+      const signature = await walletClient.signMessage({
+        account,
+        message: `Sign this message to access your StealthBacker profile.\n\nThis signature is used to securely generate your scanning keys on this device without you needing to manage them manually.\n\nAccount: ${account}`
+      });
+      const keys = getKeysFromSignature(signature);
+      sessionStorage.setItem(`worm_sk_${account}`, keys.privateKey);
+      setHasLocalKey(true);
+      scanUnredeemed();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to unlock profile");
+    }
   };
 
   const loadCreatorInfo = async () => {
@@ -109,7 +136,7 @@ export default function Profile() {
 
   const scanUnredeemed = async () => {
     if (!account || !COMMIT_REGISTRY_ADDRESS) return;
-    const sk = localStorage.getItem(`worm_sk_${account}`);
+    const sk = sessionStorage.getItem(`worm_sk_${account}`);
     if (!sk) return;
     setScanning(true);
     setScanStatus('Preparing scan...');
@@ -246,7 +273,14 @@ export default function Profile() {
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-2"><ZapIcon className="text-worm-green" /> Support Received</h2>
             <div className="text-xs font-mono text-text-muted mb-2">&gt; {scanning ? 'Scanning...' : scanStatus || 'Idle'}</div>
-            {unredeemed.length === 0 ? (
+            {!hasLocalKey ? (
+               <div className="bg-panel border border-worm-green/20 rounded-xl p-8 text-center">
+                 <p className="text-text-muted mb-4">Unlock your profile to scan for incoming support.</p>
+                 <button onClick={handleUnlock} className="px-6 py-2 bg-worm-green text-black font-bold rounded-lg hover:bg-white transition-all">
+                   Unlock to Scan
+                 </button>
+               </div>
+            ) : unredeemed.length === 0 ? (
               <div className="bg-panel border border-worm-green/20 rounded-xl p-6 text-text-muted">No unredeemed support detected in recent blocks.</div>
             ) : (
               <div className="bg-panel border border-worm-green/20 rounded-xl overflow-hidden">
