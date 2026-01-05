@@ -12,6 +12,20 @@ export const generateScanningKeys = () => {
   };
 };
 
+// New: Deterministic generation from signature
+export const getKeysFromSignature = (signature: string) => {
+  // Use the signature as a seed
+  // We hash it to ensure uniform distribution and correct length (32 bytes)
+  const privateKeyBytes = keccak_256(hexToBytes(signature as `0x${string}`));
+  const privateKey = bytesToHex(privateKeyBytes);
+  const publicKey = bytesToHex(secp256k1.getPublicKey(privateKeyBytes));
+  
+  return {
+    privateKey,
+    publicKey,
+  };
+};
+
 export const generateEphemeralKeys = () => {
   const privateKey = generatePrivateKey();
   const publicKey = secp256k1.getPublicKey(hexToBytes(privateKey));

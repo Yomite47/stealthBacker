@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getWalletClient, publicClient, ensureCorrectNetwork } from '@/lib/viem';
 import { useWallet } from '@/context/WalletContext';
-import { generateScanningKeys, recoverStealthPrivateKey } from '@/lib/crypto';
+import { getKeysFromSignature, recoverStealthPrivateKey } from '@/lib/crypto';
 import { COMMIT_REGISTRY_ADDRESS, commitRegistryAbi } from '@/lib/contracts';
 import { Address, formatEther } from 'viem';
 
@@ -30,9 +30,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [error, setError] = useState('');
-  const [importKey, setImportKey] = useState('');
   const [hasLocalKey, setHasLocalKey] = useState(false);
-  const [showImport, setShowImport] = useState(false);
   
   // Deletion Logic State
   const [deleting, setDeleting] = useState(false);
@@ -83,13 +81,17 @@ export default function Register() {
       await ensureCorrectNetwork();
       if (dbg) console.log("Network correct.");
 
-      // 1. Generate Scanning Keys (Stealth Keys)
-      if (dbg) console.log("Generating keys...");
-      const keys = generateScanningKeys();
-      if (dbg) console.log("Keys generated");
+      // 1. Sign Message to Derive Keys (Deterministic)
+      if (dbg) console.log("Requesting signature...");
+      const signature = await walletClient.signMessage({
+        account,
+        message: `Sign this message to access your StealthBacker profile.\n\nThis signature is used to securely generate your scanning keys on this device without you needing to manage them manually.\n\nAccount: ${account}`
+      });
+      
+      const keys = getKeysFromSignature(signature);
+      if (dbg) console.log("Keys derived");
 
-      // 2. Save Private Key to Local Storage
-      // In a real app, this should be encrypted or handled by a wallet extension
+      // 2. Save Private Key to Local Storage (Auto-login for next time)
       localStorage.setItem(`worm_sk_${account}`, keys.privateKey);
 
       // 3. Register Public Key on Chain
@@ -111,6 +113,7 @@ export default function Register() {
       if (dbg) console.log("Transaction confirmed");
 
       setRegistered(true);
+      setHasLocalKey(true); // Immediate update
     } catch (err: unknown) {
       const dbg = process.env.NEXT_PUBLIC_DEBUG === '1';
       if (dbg) console.error(err);
@@ -118,6 +121,23 @@ export default function Register() {
       setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUnlock = async () => {
+    const walletClient = getWalletClient();
+    if (!account || !walletClient) return;
+    try {
+      const signature = await walletClient.signMessage({
+        account,
+        message: `Sign this message to access your StealthBacker profile.\n\nThis signature is used to securely generate your scanning keys on this device without you needing to manage them manually.\n\nAccount: ${account}`
+      });
+      const keys = getKeysFromSignature(signature);
+      localStorage.setItem(`worm_sk_${account}`, keys.privateKey);
+      setHasLocalKey(true);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to unlock profile");
     }
   };
 
@@ -205,8 +225,6 @@ export default function Register() {
     localStorage.removeItem(`worm_last_scan_block_${account}`);
     setHasLocalKey(false);
     setShowDeleteConfirm(false);
-    // Force re-render of state
-    setImportKey('');
   };
 
   if (registered) {
@@ -233,14 +251,14 @@ export default function Register() {
                <span className="text-xs bg-worm-green/20 text-worm-green px-2 py-0.5 rounded border border-worm-green/20">Active Creator</span>
              </div>
              <div className="flex items-center justify-between">
-               <span className="text-sm text-text-muted">Device Key</span>
+               <span className="text-sm text-text-muted">Profile Access</span>
                {hasLocalKey ? (
                  <span className="text-xs text-green-400 flex items-center gap-1">
-                   <CheckIcon className="w-3 h-3" /> Saved
+                   <CheckIcon className="w-3 h-3" /> Unlocked
                  </span>
                ) : (
-                 <span className="text-xs text-red-400 flex items-center gap-1">
-                   Missing
+                 <span className="text-xs text-yellow-400 flex items-center gap-1">
+                   Locked
                  </span>
                )}
              </div>
@@ -267,62 +285,23 @@ export default function Register() {
                 ) : (
                   <>
                     <TrashIcon className="w-4 h-4" />
-                    Delete Profile
+                    Logout / Clear Session
                   </>
                 )}
               </button>
             </div>
           ) : (
             <div className="space-y-4">
-              {!showImport ? (
-                <button 
-                  onClick={() => setShowImport(true)}
-                  className="w-full py-3 px-6 bg-black/40 border border-white/10 text-text-muted hover:text-white hover:border-worm-green/50 rounded-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <KeyIcon className="w-4 h-4" />
-                  Recover / Import Key
-                </button>
-              ) : (
-                <div className="bg-black/30 border border-white/10 p-4 rounded-lg animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <KeyIcon className="w-4 h-4 text-worm-green" />
-                      <span className="font-bold text-sm text-white">Import Scanning Key</span>
-                    </div>
-                    <button onClick={() => setShowImport(false)} className="text-xs text-text-muted hover:text-white">Cancel</button>
-                  </div>
-                  <p className="text-xs text-text-muted mb-3 text-left">
-                    Paste the private key generated during registration to restore access on this device.
-                  </p>
-                  <input
-                    value={importKey}
-                    onChange={(e) => setImportKey(e.target.value)}
-                    placeholder="0x..."
-                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-worm-green focus:outline-none mb-3 font-mono"
-                  />
-                  <button
-                    onClick={() => {
-                      if (!account) return;
-                      const v = importKey.trim();
-                      if (!v.startsWith('0x') || v.length < 66) {
-                        alert('Invalid key format');
-                        return;
-                      }
-                      try {
-                        localStorage.setItem(`worm_sk_${account}`, v);
-                        setHasLocalKey(true);
-                        setImportKey('');
-                        setShowImport(false);
-                      } catch {
-                        alert('Failed to save key');
-                      }
-                    }}
-                    className="w-full py-2 bg-worm-green/20 text-worm-green border border-worm-green/20 rounded hover:bg-worm-green/30 transition-colors text-sm font-bold"
-                  >
-                    Save Key
-                  </button>
-                </div>
-              )}
+              <button 
+                onClick={handleUnlock}
+                className="w-full py-3 px-6 bg-worm-green text-black font-bold rounded-lg transition-all flex items-center justify-center gap-2 hover:bg-success hover:shadow-[0_0_20px_rgba(58,242,107,0.4)]"
+              >
+                <KeyIcon className="w-4 h-4" />
+                Unlock with Wallet
+              </button>
+              <p className="text-xs text-text-muted">
+                Sign a message with your wallet to verify ownership and unlock your profile.
+              </p>
             </div>
           )}
 
