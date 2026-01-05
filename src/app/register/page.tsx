@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getWalletClient, publicClient, ensureCorrectNetwork } from '@/lib/viem';
 import { useWallet } from '@/context/WalletContext';
 import { generateScanningKeys } from '@/lib/crypto';
@@ -23,6 +23,37 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [error, setError] = useState('');
+  const [importKey, setImportKey] = useState('');
+  const [hasLocalKey, setHasLocalKey] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      if (!account || !COMMIT_REGISTRY_ADDRESS) return;
+      try {
+        const list = await publicClient.readContract({
+          address: COMMIT_REGISTRY_ADDRESS,
+          abi: commitRegistryAbi,
+          functionName: 'getAllCreators',
+        }) as unknown as Array<{ wallet: `0x${string}`; name: string }>;
+        const rec = Array.isArray(list) ? list.find(c => c.wallet.toLowerCase() === account.toLowerCase()) : undefined;
+        if (rec) {
+          setRegistered(true);
+          setName(rec.name || '');
+        } else {
+          setRegistered(false);
+        }
+      } catch {
+        setRegistered(false);
+      }
+      try {
+        const existing = localStorage.getItem(`worm_sk_${account}`);
+        setHasLocalKey(!!existing);
+      } catch {
+        setHasLocalKey(false);
+      }
+    };
+    check();
+  }, [account]);
 
   const handleRegister = async () => {
     const walletClient = getWalletClient();
@@ -82,14 +113,50 @@ export default function Register() {
           <div className="w-20 h-20 bg-worm-green/20 rounded-full flex items-center justify-center mx-auto mb-6 text-worm-green">
             <CheckIcon className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-bold mb-4 text-glow">Welcome, {name}!</h1>
-          <p className="mb-6 text-text-muted">
-            You are now registered as a Stealth Creator.
-          </p>
-          <div className="bg-worm-green/10 border border-worm-green/20 p-4 rounded-lg mb-8 text-sm text-text-primary flex items-start gap-3 text-left">
-            <KeyIcon className="w-5 h-5 text-worm-green flex-shrink-0 mt-0.5" />
-            <span>Your scanning key has been generated and saved to this browser. You can now receive private support.</span>
-          </div>
+          <h1 className="text-3xl font-bold mb-4 text-glow">{name ? `Welcome, ${name}!` : 'Creator Registered'}</h1>
+          <p className="mb-6 text-text-muted">This wallet is already registered. Re-registering is not needed.</p>
+          {hasLocalKey ? (
+            <div className="bg-worm-green/10 border border-worm-green/20 p-4 rounded-lg mb-8 text-sm text-text-primary flex items-start gap-3 text-left">
+              <KeyIcon className="w-5 h-5 text-worm-green flex-shrink-0 mt-0.5" />
+              <span>Local scanning key found on this device. You can scan and redeem supports from the Dashboard.</span>
+            </div>
+          ) : (
+            <div className="bg-black/30 border border-white/10 p-4 rounded-lg mb-8 text-sm text-text-primary text-left space-y-3">
+              <div className="flex items-center gap-3">
+                <KeyIcon className="w-5 h-5 text-worm-green flex-shrink-0" />
+                <div>
+                  <div className="font-bold">Import Scanning Key</div>
+                  <div className="text-text-muted">Paste the private key that was generated when you first registered.</div>
+                </div>
+              </div>
+              <input
+                value={importKey}
+                onChange={(e) => setImportKey(e.target.value)}
+                placeholder="0x..."
+                className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white focus:border-worm-green focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  if (!account) return;
+                  const v = importKey.trim();
+                  if (!v.startsWith('0x') || v.length < 66) {
+                    alert('Invalid key format');
+                    return;
+                  }
+                  try {
+                    localStorage.setItem(`worm_sk_${account}`, v);
+                    setHasLocalKey(true);
+                    setImportKey('');
+                    alert('Scanning key saved to this browser.');
+                  } catch {}
+                }}
+                disabled={!importKey}
+                className="w-full py-2 bg-worm-green text-black rounded-lg font-bold disabled:opacity-50"
+              >
+                Save Key
+              </button>
+            </div>
+          )}
           <a
             href="/dashboard"
             className="inline-block w-full py-3 px-6 bg-worm-green text-black rounded-lg font-bold hover:bg-success hover:shadow-[0_0_15px_rgba(58,242,107,0.5)] transition-all"
